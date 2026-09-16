@@ -1,0 +1,12 @@
+node_modules/
+data/
+.npm-cache/
+test-results/
+*.log
+.env
+.env.*
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+coverage/
+playwright-report/

@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PaperLex · 科研阅读工作台</title><link rel="stylesheet" href="/vendor/web/pdf_viewer.css"><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/reader-upgrades.css"></head>
+<body>
+<aside class="app-sidebar">
+  <a class="brand" href="/" aria-label="PaperLex 首页"><span class="logo">P<span>✦</span></span><div>PaperLex<small>让理解，发生在语境里</small></div></a>
+  <div class="workspace-label">个人科研工作台 <span>LOCAL</span></div>
+  <nav><button data-view="library" class="nav active"><span>▤</span> 文献工作台</button><button data-view="vocabulary" class="nav"><span>◇</span> 我的词汇库 <b id="wordCount">0</b></button><button data-view="review" class="nav"><span>◷</span> 今日复习 <b id="dueCount">0</b></button></nav>
+  <div class="section-label">研究项目 <button id="newProject" title="新建研究项目">＋</button></div><div id="projects"></div>
+  <div class="app-sidebar-bottom"><div class="local-card"><i></i><div>本地优先，安心阅读<small>文献与学习记录保存在此电脑</small></div></div><a href="/guide" target="_blank" rel="noopener" class="nav" title="使用指南"><span>?</span> 使用指南</a><button id="settingsBtn" class="nav"><span>⚙</span> 设置与数据</button></div>
+</aside>
+<main>
+  <header><div class="breadcrumb">工作空间 <span>/</span> <strong id="breadcrumb">文献工作台</strong></div><div class="header-right"><span id="networkBadge" class="status">● 离线模式</span><span class="avatar">研</span></div></header>
+  <section id="mainContent"></section>
+</main>
+<dialog id="projectDialog"><form id="projectForm"><div class="dialog-heading"><h2>开始一个研究项目</h2><button type="button" class="close">×</button></div><p class="muted">把同一课题的文献、术语与阅读笔记放在一起。</p><label>项目名称<input name="name" required maxlength="200" placeholder="例如：低温等离子体诊断"></label><label>研究方向 / 英文关键词<textarea name="topic" maxlength="500" placeholder="例如：non-thermal plasma, electric field diagnostics"></textarea></label><p class="hint">用于为联网论文检索补充课题语境；留空时从文献自动提取关键词。</p><button class="primary" type="submit">创建项目</button></form></dialog>
+<dialog id="settingsDialog"><form id="settingsForm"><div class="dialog-heading"><h2>设置与数据</h2><button type="button" class="close">×</button></div><label class="toggle"><input type="checkbox" name="online">启用联网翻译与科研语料检索</label><p class="hint">开启后，选中文本与自动摘录概要会发送到 MyMemory 翻译服务；检索词与课题关键词会发送到 OpenAlex。不会上传 PDF 原文件。</p><label>OpenAlex API Key（可选）<input name="openalexKey" type="password" autocomplete="off" placeholder="留空保留现有密钥"></label><hr><label class="toggle"><input type="checkbox" name="aiEnabled">启用模型增强释义与双语概要</label><p class="hint">支持本机 Ollama 等兼容 Chat Completions 的模型服务。远程模型另需开启联网；会发送选中段落，概要最多发送文献前 26000 字符。</p><label>服务地址<input name="aiUrl" type="url" placeholder="http://127.0.0.1:11434/v1"></label><label>模型名称<input name="aiModel" placeholder="qwen2.5:7b"></label><label>模型 API Key（本地模型可留空）<input name="aiKey" type="password" autocomplete="off" placeholder="留空保留现有密钥"></label><label class="toggle"><input type="checkbox" name="clearKeys">清除已保存的全部密钥</label><p class="hint">密钥仅存本机数据库。服务额度与费用以提供方为准。</p><div class="actions"><button type="button" id="exportBtn" class="secondary">导出学习数据</button><button class="primary">保存设置</button></div></form></dialog>
+<dialog id="noteDialog"><form id="noteForm"><div class="dialog-heading"><h2>留下阅读批注</h2><button type="button" class="close">×</button></div><blockquote id="noteQuote"></blockquote><label>你的笔记<textarea name="note" rows="4" placeholder="记录理解、疑问或与课题的关联…"></textarea></label><label>标记颜色<select name="color"><option value="yellow">暖黄色 · 重点</option><option value="green">浅绿色 · 方法</option><option value="purple">淡紫色 · 疑问</option></select></label><button class="primary">保存批注</button></form></dialog>
+<input type="file" id="fileInput" accept=".pdf,.txt,.md" multiple hidden>
+<div id="selectionBar" hidden><button id="selectionLookup">✦ 查词 / 翻译</button><button id="selectionNote">▧ 批注</button></div>
+<div id="toast" role="status"></div>
+<script type="module" src="/app.js"></script>
+</body></html>

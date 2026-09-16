@@ -1,0 +1,17 @@
+import {readFileSync,writeFileSync} from 'node:fs';
+const escape=s=>s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const inline=s=>escape(s).replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,'<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/`([^`]+)`/g,'<code>$1</code>');
+const lines=readFileSync(new URL('../README.md',import.meta.url),'utf8').split(/\r?\n/);let html='',code=false,table=false,toc='',i=0,list=false;
+for(const line of lines){
+ if(line.startsWith('```')){if(table){html+='</tbody></table></div>';table=false;}if(list){html+='</ul>';list=false;}code=!code;html+=code?'<pre><code>':'</code></pre>';continue;}
+ if(code){html+=escape(line)+'\n';continue;}
+ if(line.startsWith('|')){if(!table){html+='<div class="table-wrap"><table><tbody>';table=true;}if(/^\|[\s:|\-]+$/.test(line))continue;html+='<tr>'+line.slice(1,-1).split('|').map(c=>'<td>'+inline(c.trim())+'</td>').join('')+'</tr>';continue;}
+ if(table){html+='</tbody></table></div>';table=false;}
+ if(line.startsWith('- ')){if(!list){html+='<ul>';list=true;}html+='<li>'+inline(line.slice(2))+'</li>';continue;}
+ if(list){html+='</ul>';list=false;}
+ const heading=line.match(/^(#{1,3}) (.*)$/);if(heading){const n=heading[1].length,id='section-'+i++;html+=`<h${n} id="${id}">${inline(heading[2])}</h${n}>`;if(n===2)toc+=`<a href="#${id}">${escape(heading[2])}</a>`;continue;}
+ if(line.trim())html+='<p>'+inline(line)+'</p>';
+}
+const output=`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PaperLex 详细使用说明</title><style>*{box-sizing:border-box}body{margin:0;background:#f6f7fb;color:#303b50;font:15px/1.95 "Segoe UI","Microsoft YaHei",sans-serif}aside{position:fixed;inset:0 auto 0 0;width:260px;background:white;border-right:1px solid #e7e8ef;padding:32px 22px;overflow:auto}aside b{display:block;font-size:24px;color:#7460ce;margin-bottom:22px}aside a{display:block;margin:12px 0;font-size:13px}main{max-width:1190px;margin:0 auto 0 260px;padding:45px 55px 100px}h1{font-size:30px}h2{border-top:1px solid #e0e2ec;margin-top:45px;padding-top:30px;color:#51408e}h3{margin-top:30px}a{color:#7460ce;text-decoration:none}code{background:#eeeaf7;border-radius:4px;padding:3px 5px;font-size:13px;overflow-wrap:anywhere}pre{background:#292c43;color:#f0ecff;padding:19px;border-radius:10px;overflow:auto}pre code{background:none;color:inherit}table{border-collapse:collapse;width:100%;font-size:13px;background:white}td{padding:12px;border:1px solid #e3e6ee;vertical-align:top}tr:first-child{font-weight:600;background:#eeeaf7}.table-wrap{overflow:auto}strong{color:#423264}li{margin:8px 0}@media(max-width:800px){aside{position:static;width:auto;max-height:none;padding:20px}aside a{display:inline-block;margin:5px 12px 5px 0}main{margin:0;padding:20px}h1{font-size:25px}}@media print{aside{display:none}main{margin:0;padding:10px}body{background:white}h2{break-after:avoid}}</style></head><body><aside><b>PaperLex / 使用指南</b><p>可离线阅读 · 按需配置</p>${toc}</aside><main>${html}</main></body></html>`;
+writeFileSync(new URL('../详细使用说明.html',import.meta.url),output,'utf8');
+const bat=new URL('../启动.bat',import.meta.url);const text=readFileSync(bat,'utf8');if(/[^\x00-\x7f]/.test(text))throw Error('BAT must remain ASCII');writeFileSync(bat,text.replace(/\r?\n/g,'\r\n'),'ascii');console.log('README 浏览器版与 Windows CRLF 启动脚本已生成。');

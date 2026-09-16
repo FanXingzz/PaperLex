@@ -1,0 +1,11 @@
+{
+  "name": "paperlex-local",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "本地科研文献阅读、语境查词与间隔复习",
+  "scripts": {"start": "node server.mjs", "test": "node --test tests/*.test.mjs"},
+  "engines": {"node": ">=22.13"},
+  "dependencies": {"pdfjs-dist": "5.4.624"},
+  "devDependencies": {"@playwright/test": "1.58.2"}
+}
