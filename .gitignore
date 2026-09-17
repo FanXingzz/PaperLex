@@ -10,3 +10,9 @@ test-results/
 *.sqlite-shm
 coverage/
 playwright-report/
+
+.pdf-runtime/
+
+# Local agent preferences and exported study material
+AGENTS.md
+PaperLex-学习数据-*.json

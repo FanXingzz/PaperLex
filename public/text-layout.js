@@ -9,6 +9,6 @@ export function renderAcademicText(text,annotations=[],firstPage=false){
  }
  if(!groups.length&&text)groups.push({start:0,end:text.length,type:'paragraph'});
  const marks=annotations.slice().sort((a,b)=>a.index-b.index);
- function content(start,end){let cursor=start,out='';for(const a of marks){const lo=Math.max(start,a.index),hi=Math.min(end,a.index+a.quote.length);if(hi<=lo||lo<cursor)continue;out+=esc(text.slice(cursor,lo))+`<mark class="${esc(a.color)}" title="${esc(a.note)}">${esc(text.slice(lo,hi))}</mark>`;cursor=hi;}return out+esc(text.slice(cursor,end));}
+ function content(start,end){let cursor=start,out='';for(const a of marks){const lo=Math.max(start,a.index),hi=Math.min(end,a.index+a.quote.length);if(hi<=lo||lo<cursor)continue;out+=esc(text.slice(cursor,lo))+`<mark data-note-id="${esc(a.id||'')}" class="annotation-mark ${esc(a.color)}" title="${esc(a.note)}">${esc(text.slice(lo,hi))}</mark>`;cursor=hi;}return out+esc(text.slice(cursor,end));}
  return groups.map(g=>`<div class="academic-${g.type}">${content(g.start,g.end)}</div>`).join('');
 }

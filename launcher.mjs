@@ -18,8 +18,8 @@ for(const port of ports){
     if(s.app==='PaperLex'&&s.data===directory){console.log(`软件已在运行，正在打开：${u}\n如果浏览器没有自动打开，请手动访问该地址。\n此窗口可以关闭；请保留此前启动软件的窗口。`);openBrowser(u);await new Promise(r=>setTimeout(r,250));process.exit(0);}
   }catch{}
 }
-if(!existsSync(join(root,'node_modules/pdfjs-dist/package.json'))){
-  console.log('首次使用：正在安装 PDF 阅读组件，需要联网，请稍候。');
+if(['pdfjs-dist/package.json','wordnet-db/dict/data.noun'].some(file=>!existsSync(join(root,'node_modules',file)))){
+  console.log('正在补齐 PDF 阅读组件与备用词典，需要联网，请稍候。');
   const install=spawn(process.env.ComSpec||'cmd.exe',['/d','/c','npm install --omit=dev --cache .npm-cache --no-audit --no-fund'],{cwd:root,stdio:'inherit',windowsHide:true});
   const code=await new Promise(r=>{install.once('error',()=>r(1));install.once('exit',r);});
   if(code!==0){console.error('安装失败。请检查网络后重试；已有完整依赖时日常离线使用不需要这一步。');process.exit(1);}

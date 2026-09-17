@@ -1,6 +1,8 @@
+import {paintAnchor,captureAnchor,findTextRange} from './pdf-anchor.js';
 import {renderAcademicText} from './text-layout.js';
+import {decorateReading} from './reading-marks.js';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-export function continuousReader({element,document:doc,annotations,mode,layout='continuous',startPage,zoom=100,position=null,onPosition=()=>{},onPage,onError}){
+export function continuousReader({element,document:doc,annotations,cards=[],mode,layout='continuous',startPage,zoom=100,position=null,onPosition=()=>{},onPage,onError}){
   element.style.setProperty('--reading-font',`${18*zoom/100}px`);
   const pages=layout==='paged'?doc.pages.filter(p=>p.number===startPage):doc.pages;
   let stopped=false,observer,task,pdf,frame,queue=Promise.resolve();const loaded=new Set(),pending=new Set();
@@ -14,7 +16,7 @@ export function continuousReader({element,document:doc,annotations,mode,layout='
   const restore=()=>{goTo(startPage);if(position&&section(startPage)){element.scrollTop+=section(startPage).offsetHeight*(position.ratio||0);element.scrollLeft=position.left||0;sync();}};
   element.onscroll=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(sync);};
   if(mode==='text'){
-    element.innerHTML=pages.map(p=>`<section class="paper-section" data-paper-page="${p.number}"><div class="page-caption">第 ${p.number} 页 / ${doc.pages.length} · 文本精读</div><article class="paper-text" ${p.number===1?'id="readingText"':''}>${renderAcademicText(p.text,annotations.filter(a=>a.page===p.number),p.number===1)||'本页未提取到文字，请查看 PDF 原版。扫描文献需先 OCR。'}</article></section>`).join('');restore();
+    element.innerHTML=pages.map(p=>`<section class="paper-section" data-paper-page="${p.number}"><div class="page-caption">第 ${p.number} 页 / ${doc.pages.length} · 原文</div><article class="paper-text" ${p.number===1?'id="readingText"':''}>${renderAcademicText(p.text,annotations.filter(a=>a.page===p.number),p.number===1)||'本页未提取到文字，请查看 PDF 原版。扫描文献需先 OCR。'}</article></section>`).join('');for(const article of element.querySelectorAll('.paper-text'))decorateReading(article,cards);restore();
   }else{
     element.innerHTML='<div class="loading">正在准备连续阅读…</div>';
     void(async()=>{
@@ -28,11 +30,18 @@ export function continuousReader({element,document:doc,annotations,mode,layout='
         box.style.height=v.height+'px';if(above)element.scrollTop+=delta;box.style.setProperty('--scale-factor',scale);box.style.setProperty('--total-scale-factor',scale);box.innerHTML='<canvas></canvas><div class="textLayer"></div>';
         const c=box.querySelector('canvas'),ratio=Math.min(devicePixelRatio||1,2);c.width=Math.floor(v.width*ratio);c.height=Math.floor(v.height*ratio);c.style.width=v.width+'px';c.style.height=v.height+'px';
         await p.render({canvasContext:c.getContext('2d'),viewport:v,transform:ratio!==1?[ratio,0,0,ratio,0,0]:null}).promise;if(stopped)return;
-        await new pdfjs.TextLayer({textContentSource:await p.getTextContent(),container:box.querySelector('.textLayer'),viewport:v}).render();loaded.add(n);sync();
+        await new pdfjs.TextLayer({textContentSource:await p.getTextContent(),container:box.querySelector('.textLayer'),viewport:v}).render();decorateReading(box.querySelector('.textLayer'),cards,[],true,doc.pages[n-1].text);for(const note of annotations.filter(a=>a.page===n)){let anchor=note.anchor;if(!anchor?.rects?.length){const range=findTextRange(box.querySelector('.textLayer'),note.quote);if(range)anchor=captureAnchor(range,box);}if(anchor)paintAnchor(box,anchor,'pdf-note-rect',note.id);}loaded.add(n);sync();
       }
       observer=new IntersectionObserver(entries=>{for(const entry of entries){const n=+entry.target.dataset.paperPage;if(entry.isIntersecting&&!loaded.has(n)&&!pending.has(n)){pending.add(n);queue=queue.then(()=>draw(n)).catch(e=>{if(!stopped){const box=section(n)?.querySelector('.pdf-page');if(box)box.innerHTML=`<p class="warning">本页加载失败：${esc(e.message)}。可切换阅读模式重试。</p>`;onError(e);}}).finally(()=>pending.delete(n));}}},{root:element,rootMargin:'800px 0px'});
       restore();for(const el of element.children)observer.observe(el);
     })().catch(e=>{if(!stopped){element.innerHTML=`<p class="warning">PDF 加载失败：${esc(e.message)}</p>`;onError(e);}});
   }
-  return {goTo,getPosition,destroy(){stopped=true;observer?.disconnect();cancelAnimationFrame(frame);element.onscroll=null;if(task)void task.destroy().catch(()=>{});}};
+  async function goToAnchor(target){const deadline=Date.now()+10000;while(!stopped&&!section(target.page)&&Date.now()<deadline)await new Promise(r=>setTimeout(r,40));if(stopped)return false;goTo(target.page);while(!stopped&&!loaded.has(target.page)&&mode!=='text'&&Date.now()<deadline)await new Promise(r=>setTimeout(r,60));if(stopped)return false;const sectionEl=section(target.page);if(!sectionEl)return false;
+   element.querySelectorAll('.pdf-jump-rect').forEach(el=>el.remove());element.querySelectorAll('.note-target').forEach(el=>el.classList.remove('note-target'));
+   let mark=target.id?sectionEl.querySelector('[data-note-id="'+CSS.escape(target.id)+'"]'):null;
+   if(!mark){const box=sectionEl.querySelector('.pdf-page'),root=box?.querySelector('.textLayer')||sectionEl.querySelector('.paper-text');if(!root)return false;let anchor=target.anchor;if(target.term){const matches=[...root.querySelectorAll('.vocab-mark')].filter(el=>el.textContent.toLowerCase()===target.term.toLowerCase());const bounds=box?.getBoundingClientRect(),r=anchor?.rects?.[0];if(matches.length){mark=matches.sort((a,b)=>{if(!bounds||!r)return 0;const score=el=>{const p=el.getBoundingClientRect();return Math.abs((p.left-bounds.left)/bounds.width-r.x)+Math.abs((p.top-bounds.top)/bounds.height-r.y);};return score(a)-score(b);})[0];anchor=null;}else{const range=findTextRange(root,target.term);if(range&&box)anchor=captureAnchor(range,box);}}if(!mark&&!anchor?.rects?.length){let range;for(const quote of [target.context,target.quote,target.term]){range=findTextRange(root,quote);if(range)break;}if(range&&box)anchor=captureAnchor(range,box);else if(range){mark=range.startContainer.parentElement;}}
+    if(!mark&&box&&anchor?.rects?.length)mark=paintAnchor(box,anchor,'pdf-jump-rect')[0];}
+   if(!mark)return false;const rect=mark.getBoundingClientRect(),bounds=element.getBoundingClientRect();element.scrollTo({top:Math.max(0,element.scrollTop+rect.top-bounds.top-element.clientHeight*.35),left:Math.max(0,element.scrollLeft+rect.left-bounds.left-element.clientWidth*.25),behavior:'instant'});if(!target.term)mark.classList.add('note-target');sync();return true;}
+  const goToAnnotation=note=>goToAnchor(note);
+  return {goTo,goToAnnotation,goToAnchor,getPosition,destroy(){stopped=true;observer?.disconnect();cancelAnimationFrame(frame);element.onscroll=null;if(task)void task.destroy().catch(()=>{});}};
 }

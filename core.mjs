@@ -62,13 +62,4 @@ export function extractSummary(pages) {
   const en=scored.sort((a,b)=>b.score-a.score).slice(0,4).sort((a,b)=>a.i-b.i).map(x=>x.s).join(' ')||source.slice(0,800);
   return {en,zh:'',keywords:key,method:abstract?'摘要段落摘录':'正文关键句摘录',status:'offline',error:''};
 }
-export function schedule(card, rating, now=Date.now()) {
-  if(!['again','hard','good','easy'].includes(rating)) throw Error('无效评分');
-  let ease=card.ease||2.5, reps=card.reps||0, interval=card.interval||0;
-  if(rating==='again') return {...card,reps:0,interval:0,ease:Math.max(1.3,ease-.2),due:now+600000};
-  if(rating==='hard') {ease=Math.max(1.3,ease-.15);interval=reps?Math.max(1,interval*1.2):1;}
-  if(rating==='good') interval=reps===0?1:reps===1?3:interval*ease;
-  if(rating==='easy') {ease+=.15;interval=reps===0?4:Math.max(4,interval*ease*1.3);}
-  interval=Math.round(interval*10)/10;
-  return {...card,ease,reps:reps+1,interval,due:now+interval*86400000};
-}
+export {schedule} from './memory.mjs';

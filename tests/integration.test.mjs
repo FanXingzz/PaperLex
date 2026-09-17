@@ -23,11 +23,27 @@ test('导入、关联、批注、复习、重启持久化完整流程',async()=>
   const quote='electric fields';const annotation=await call('annotations',{documentId:a.id,page:1,index:text.indexOf(quote),quote,note:'瞬态电场'});assert.equal(annotation.status,200);
   assert.equal((await call('annotations',{documentId:a.id,page:1,index:0,quote:'invalid'})).status,400);
   const card=(await call('cards',{projectId:project.id,term:'plasma',meaning:'等离子体',documentId:a.id,page:1,context:text})).data;
+  await call('cards',{...card,meaning:'我的研究语境补充'});
+  for(const phase of ['fast',undefined,'details'])assert.equal((await call('lookup',{q:'Plasma',projectId:project.id,phase})).data.meaning,'我的研究语境补充');
+  await call('cards',{...card,meaning:'再次校正保存'});assert.equal((await call('lookup',{q:'plasma',projectId:project.id})).data.meaning,'再次校正保存');
+  const other=(await call('projects',{name:'不同课题'})).data;assert.notEqual((await call('lookup',{q:'plasma',projectId:other.id})).data.meaning,'再次校正保存');
   assert.equal((await call('review',{id:card.id,rating:'good'})).data.interval,1);
   assert.equal((await call('review',{id:card.id,rating:'good'})).status,400);
+  assert.equal((await call('memory',{target:.99})).status,400);assert.equal((await call('memory',{target:.95})).status,200);assert.ok((await call('state')).data.cards[0].interval<1);
+  const draft=(await call('translation?id='+a.id)).data,block=draft.pages[0].blocks[0];assert.ok(block.source.includes('plasma'));assert.equal((await call('translation/start',{id:a.id})).status,400);assert.equal((await call('translation/edit',{id:a.id,blockId:block.id,revision:block.revision,text:'离线手工校对译稿',fontSize:12})).status,200);
   const external=await fetch(base+'/api/projects',{method:'POST',headers:{Origin:'https://evil.example','Content-Type':'application/json'},body:JSON.stringify({name:'evil'})});assert.equal(external.status,403);
   assert.equal((await fetch(base+'/vendor/../../server.mjs')).status,404);
   assert.equal((await call('corpus',{q:'plasma',projectId:project.id})).status,400);
   await stop();await start();const persisted=(await call('state')).data;assert.equal(persisted.documents.length,2);assert.equal(persisted.cards[0].reps,1);assert.equal(persisted.annotations.length,1);
+  assert.equal((await call('lookup',{q:'plasma',projectId:project.id})).data.meaning,'再次校正保存');
+  assert.equal(persisted.settings.retentionTarget,.95);assert.equal((await call('translation?id='+a.id)).data.pages[0].blocks[0].text,'离线手工校对译稿');assert.equal((await call('pronunciation?q=plasma')).data.status,'local');
   const exported=(await call('export')).data;assert.equal(exported.documents[0].pages[0].text,text);assert.ok(!exported.settings);assert.equal(exported.terms[0].translation,'低温等离子体');
+});
+
+
+test('服务密钥不回传、不导出，切换模型服务器清除旧密钥',async()=>{
+ const save=await call('settings',{online:true,aiEnabled:true,aiUrl:'https://api.openai.com/v1',aiModel:'gpt-4.1-mini',aiKey:'test-openai-key',deeplKey:'test-deepl-key',deeplPlan:'pro'});assert.equal(save.status,200);assert.equal(save.data.hasAiKey,true);assert.equal(save.data.hasDeepLKey,true);assert.equal(save.data.aiKey,'');assert.equal(save.data.deeplKey,'');
+ assert.ok(!JSON.stringify((await call('export')).data).includes('test-deepl-key'));
+ const changed=await call('settings',{online:false,aiEnabled:false,aiUrl:'http://127.0.0.1:11434/v1',aiModel:'qwen2.5:7b',deeplPlan:'pro'});assert.equal(changed.data.hasAiKey,false);assert.equal(changed.data.hasDeepLKey,true);
+ assert.match((await call('provider-test',{provider:'deepl'})).data.error,/联网/);await call('settings',{clearKeys:true});assert.equal((await call('state')).data.settings.hasDeepLKey,false);
 });
